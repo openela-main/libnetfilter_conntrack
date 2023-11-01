@@ -1,0 +1,92 @@
+From 883bc7739f467000f1ccb00b5d0e383c7289dcc0 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 25 Mar 2022 14:55:53 +0100
+Subject: [PATCH] expect/conntrack: Avoid spurious covscan overrun warning
+
+It doesn't like how memset() is called for a struct nfnlhdr pointer with
+large size value. Pass void pointers instead. This also removes the call
+from __build_{expect,conntrack}() which is duplicate in
+__build_query_{exp,ct}() code-path.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 86f5bdc2a85b208053e7361ccd575e4eb3c853a3)
+---
+ src/conntrack/api.c   | 4 +++-
+ src/conntrack/build.c | 2 --
+ src/expect/api.c      | 4 +++-
+ src/expect/build.c    | 2 --
+ 4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/conntrack/api.c b/src/conntrack/api.c
+index b7f64fb43ce83..7f72d07f2e7f6 100644
+--- a/src/conntrack/api.c
++++ b/src/conntrack/api.c
+@@ -779,6 +779,8 @@ int nfct_build_conntrack(struct nfnl_subsys_handle *ssh,
+ 	assert(req != NULL);
+ 	assert(ct != NULL);
+ 
++	memset(req, 0, size);
++
+ 	return __build_conntrack(ssh, req, size, type, flags, ct);
+ }
+ 
+@@ -812,7 +814,7 @@ __build_query_ct(struct nfnl_subsys_handle *ssh,
+ 	assert(data != NULL);
+ 	assert(req != NULL);
+ 
+-	memset(req, 0, size);
++	memset(buffer, 0, size);
+ 
+ 	switch(qt) {
+ 	case NFCT_Q_CREATE:
+diff --git a/src/conntrack/build.c b/src/conntrack/build.c
+index b5a7061d53698..f80cfc12d5e38 100644
+--- a/src/conntrack/build.c
++++ b/src/conntrack/build.c
+@@ -27,8 +27,6 @@ int __build_conntrack(struct nfnl_subsys_handle *ssh,
+ 		return -1;
+ 	}
+ 
+-	memset(req, 0, size);
+-
+ 	buf = (char *)&req->nlh;
+ 	nlh = mnl_nlmsg_put_header(buf);
+ 	nlh->nlmsg_type = (NFNL_SUBSYS_CTNETLINK << 8) | type;
+diff --git a/src/expect/api.c b/src/expect/api.c
+index 39cd09249684c..b100c72ded50e 100644
+--- a/src/expect/api.c
++++ b/src/expect/api.c
+@@ -513,6 +513,8 @@ int nfexp_build_expect(struct nfnl_subsys_handle *ssh,
+ 	assert(req != NULL);
+ 	assert(exp != NULL);
+ 
++	memset(req, 0, size);
++
+ 	return __build_expect(ssh, req, size, type, flags, exp);
+ }
+ 
+@@ -546,7 +548,7 @@ __build_query_exp(struct nfnl_subsys_handle *ssh,
+ 	assert(data != NULL);
+ 	assert(req != NULL);
+ 
+-	memset(req, 0, size);
++	memset(buffer, 0, size);
+ 
+ 	switch(qt) {
+ 	case NFCT_Q_CREATE:
+diff --git a/src/expect/build.c b/src/expect/build.c
+index 2e0f968f36dad..1807adce26f62 100644
+--- a/src/expect/build.c
++++ b/src/expect/build.c
+@@ -29,8 +29,6 @@ int __build_expect(struct nfnl_subsys_handle *ssh,
+ 	else
+ 		return -1;
+ 
+-	memset(req, 0, size);
+-
+ 	buf = (char *)&req->nlh;
+ 	nlh = mnl_nlmsg_put_header(buf);
+ 	nlh->nlmsg_type = (NFNL_SUBSYS_CTNETLINK_EXP << 8) | type;
+-- 
+2.38.0
+
